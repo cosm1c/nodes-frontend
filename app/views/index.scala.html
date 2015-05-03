@@ -1,0 +1,6 @@
+@()
+@pageTemplate("Nodes", "Realtime node graph", "Cory Prowse") {
+    <h1>Digraph</h1>
+    <div id="cy" ng-controller="NodesCtrl"></div>
+    <script data-main="@routes.Assets.versioned("javascripts/main.js")" src="@routes.Assets.versioned("lib/requirejs/require.js")"></script>
+}
