@@ -2,33 +2,31 @@ package actors
 
 import actors.DigraphActor._
 import akka.actor._
-import controllers.DiGraph
+import controllers.DiGraphController
 import play.api.libs.json._
 
 class ClientWebSocketActor(out: ActorRef) extends Actor with ActorLogging {
 
-  log.info("ClientWebSocketActor started")
+  log.info(s"ClientWebSocketActor started $out")
 
   override def preStart(): Unit = {
     log.info("preStart")
-    DiGraph.digraphActor ! Subscribe
+    DiGraphController.digraphActor ! Subscribe
   }
 
 
   override def postStop(): Unit = {
     log.info("postStop")
-    DiGraph.digraphActor ! Unsubscribe
+    DiGraphController.digraphActor ! Unsubscribe
   }
 
   override def receive = {
 
-    case digraphState: DigraphState =>
-      //      log.info(s"Sending DigraphState ${digraphState.nodeStates}")
-      out ! Json.toJson(digraphState.nodeStates)
+    case addNodes: AddNodes =>
+      out ! Json.toJson(addNodes)
 
-    case nodeState: NodeState =>
-      //      log.info(s"Sending State $nodeState")
-      out ! Json.arr(nodeState)
+    case stateChanges: StateChanges =>
+      out ! Json.toJson(stateChanges)
   }
 }
 

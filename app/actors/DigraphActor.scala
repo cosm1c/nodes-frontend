@@ -4,9 +4,9 @@ import actors.DigraphActor._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import domain.Node
 import domain.Node.NodeId
-import play.api.libs.json.{Json, JsValue, Writes}
+import play.api.libs.json.{JsValue, Json, Writes}
 
-class DigraphActor(digraph: Seq[Node]) extends Actor with ActorLogging {
+class DigraphActor(private var digraph: Set[Node]) extends Actor with ActorLogging {
 
   private var nodesStateMap: Map[NodeId, NodeState] = digraph.map(node => (node.id, NodeState(node.id, Unknown))).toMap
 
@@ -16,40 +16,56 @@ class DigraphActor(digraph: Seq[Node]) extends Actor with ActorLogging {
 
     case Subscribe =>
       log.info(s"Subscribe ${sender()}")
-      sender() ! DigraphState(nodesStateMap.values.toSeq)
+      sender() ! AddNodes(digraph.toSeq)
+      sender() ! StateChanges(nodesStateMap.values.toSeq)
       listeners += sender()
 
     case Unsubscribe =>
       log.info(s"Unsubscribe ${sender()}")
       listeners -= sender()
 
-    case StateChange(nodeState) =>
-//      log.info(s"StateChange $nodeState")
-      listeners.foreach(_ ! nodeState)
-      nodesStateMap += nodeState.id -> nodeState
+    case stateChange: StateChanges =>
+      //log.info(s"StateChange $nodeState")
+      listeners.foreach(_ ! stateChange)
+      nodesStateMap ++= stateChange.nodeStates.map(nodeState => nodeState.id -> nodeState)
+
+    case addNodes@AddNodes(node: Node) =>
+      log.info(s"AddNode $node")
+      listeners.foreach(_ ! addNodes)
+      digraph += node
+      nodesStateMap += (node.id -> NodeState(node.id, Unknown))
   }
 }
 
 object DigraphActor {
 
-  def props(digraph: Seq[Node]) = Props(new DigraphActor(digraph))
+  private val initialDigraph: Set[Node] = Set(
+    Node("root", Seq("a", "g")),
+    Node("a", Seq("b", "d", "h")),
+    Node("b", Seq("c")),
+    Node("c"),
+    Node("d", Seq("e", "f")),
+    Node("e"),
+    Node("f"),
+    Node("g", Seq("h")),
+    Node("h")
+  )
 
+  def props() = Props(new DigraphActor(initialDigraph))
+
+  /*
+   * Messages
+   */
   case object Subscribe
 
   case object Unsubscribe
 
   case class NodeState(id: NodeId, state: State)
 
-  case class StateChange(nodeState: NodeState)
+  case class StateChanges(nodeStates: Seq[NodeState])
 
-  case class DigraphState(nodeStates: Seq[NodeState])
+  case class AddNodes(nodes: Seq[Node])
 
-  implicit val nodeStateWrites = new Writes[NodeState] {
-    override def writes(nodeState: NodeState): JsValue = Json.obj(
-      "id" -> nodeState.id,
-      "state" -> nodeState.state.name
-    )
-  }
 
   /*
    * State - a simple example.
@@ -61,5 +77,30 @@ object DigraphActor {
   case object Running extends State("Running")
 
   case object Stopped extends State("Stopped")
+
+  /*
+   * JSON
+   */
+
+  implicit val addNodesWrites = new Writes[AddNodes] {
+    override def writes(addNodes: AddNodes): JsValue = Json.obj(
+      "type" -> "add",
+      "nodes" -> Json.toJson(addNodes.nodes)
+    )
+  }
+
+  implicit val nodeStateWrites = new Writes[NodeState] {
+    override def writes(nodeState: NodeState): JsValue = Json.obj(
+      "id" -> nodeState.id,
+      "state" -> nodeState.state.name
+    )
+  }
+
+  implicit val stateChangeWrites = new Writes[StateChanges] {
+    override def writes(stateChange: StateChanges): JsValue = Json.obj(
+      "type" -> "change",
+      "changes" -> Json.toJson(stateChange.nodeStates)
+    )
+  }
 
 }

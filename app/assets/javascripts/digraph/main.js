@@ -5,39 +5,12 @@ define(['angular', 'cytoscape'], function (angular, cytoscape) {
 
     // use a factory instead of a directive, because cy.js is not just for visualisation; you need access to the graph model and events etc
     module.factory('nodeGraph', ['$q', function ($q) {
-        var cy;
-        return function (nodes) {
+        return function () {
             var deferred = $q.defer();
-
-            var eles = {
-                nodes: [],
-                edges: []
-            };
-
-            for (var i = 0; i < nodes.length; i++) {
-                var node = nodes[i];
-                eles.nodes.push({
-                    data: {
-                        id: node.id
-                    }
-                });
-
-                var edges = node.depends;
-                for (var j = 0; j < edges.length; j++) {
-                    eles.edges.push({
-                        data: {
-                            source: node.id,
-                            target: edges[j]
-                        }
-                    });
-                }
-            }
-
-            //console.info('Digraph:', eles);
 
             $(function () { // on dom ready
 
-                cy = cytoscape({
+                var cy = cytoscape({
                     container: $('#cy')[0],
 
                     style: cytoscape.stylesheet()
@@ -91,7 +64,7 @@ define(['angular', 'cytoscape'], function (angular, cytoscape) {
                         padding: 10
                     },
 
-                    elements: eles,
+                    elements: [],
 
                     ready: function () {
                         deferred.resolve(this);
@@ -104,50 +77,87 @@ define(['angular', 'cytoscape'], function (angular, cytoscape) {
         };
     }]);
 
-    module.controller('NodesCtrl', ['$scope', '$http', 'nodeGraph', function ($scope, $http, nodeGraph) {
-        $http.get('/digraph').success(function (data) {
-            //console.info('Loaded: ', data);
-            nodeGraph(data).then(function (cy) {
+    module.controller('NodesCtrl', ['$scope', 'nodeGraph', function ($scope, nodeGraph) {
 
-                function setState(elem, stateClass) {
-                    elem.removeClass('running');
-                    elem.removeClass('stopped');
-                    elem.removeClass('unknown');
-                    elem.addClass(stateClass);
-                }
+        nodeGraph().then(function (cy) {
 
-                function setNodeState(nodeState) {
-                    //console.info('setNodeState', nodeState);
-                    //console.info('Setting node ' + nodeState.id + ' to ' + nodeState.state);
-                    var node = cy.getElementById(nodeState.id);
-                    var neighbourhood = node.neighborhood().add(node);
-                    setState(neighbourhood, nodeState.state.toLowerCase());
-                }
+            function setState(elem, stateClass) {
+                elem.removeClass('running');
+                elem.removeClass('stopped');
+                elem.removeClass('unknown');
+                elem.addClass(stateClass);
+            }
 
-                var ws = new WebSocket('ws://' + document.location.host + '/websocket');
+            function setNodeState(nodeState) {
+                //console.info('setNodeState', nodeState);
+                //console.info('Setting node ' + nodeState.id + ' to ' + nodeState.state);
+                var node = cy.getElementById(nodeState.id);
+                var neighbourhood = node.connectedEdges().add(node);
+                setState(neighbourhood, nodeState.state.toLowerCase());
+            }
 
-                ws.onmessage = function (evt) {
-                    var data = JSON.parse(evt.data);
-                    //console.info('WebSocket message: ', data);
-                    data.forEach(function (nodeState) {
-                        setNodeState(nodeState);
+            function addNodes(nodes) {
+                var toAdd = {
+                    nodes: [],
+                    edges: []
+                };
+
+                nodes.forEach(function (node) {
+                    toAdd.nodes.push({
+                        data: {id: node.id}
                     });
-                };
+                    node.depends.forEach(function (targetId) {
+                        toAdd.edges.push({
+                            data: {
+                                source: node.id,
+                                target: targetId
+                            }
+                        });
+                    });
+                });
+                cy.add(toAdd);
+                cy.layout();
+                //cy.fit();
+            }
 
-                ws.onerror = function (evt) {
-                    console.error("WebSocket error: " + evt.data);
-                };
+            function changeNodes(nodeStates) {
+                nodeStates.forEach(function (nodeState) {
+                    setNodeState(nodeState);
+                });
+            }
 
-                ws.onopen = function (evt) {
-                    console.info("Websocket connected");
-                };
 
-                ws.onclose = function (evt) {
-                    console.info("WebSocket disconnected");
-                };
+            var ws = new WebSocket('ws://' + document.location.host + '/websocket');
 
-                $scope.ws = ws;
-            });
+            ws.onmessage = function (evt) {
+                var data = JSON.parse(evt.data);
+                //console.info('WebSocket message: ', data);
+                switch (data.type) {
+                    case 'add':
+                        addNodes(data.nodes);
+                        break;
+                    case 'change':
+                        changeNodes(data.changes);
+                        break;
+                    default:
+                        console.error('Unknown message type: "' + data.type + '"');
+                        break;
+                }
+            };
+
+            ws.onerror = function (evt) {
+                console.error("WebSocket error: " + evt.data);
+            };
+
+            ws.onopen = function (evt) {
+                console.info("Websocket connected");
+            };
+
+            ws.onclose = function (evt) {
+                console.info("WebSocket disconnected");
+            };
+
+            $scope.ws = ws;
         });
     }]);
 
