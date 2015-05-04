@@ -81,6 +81,33 @@ define(['angular', 'cytoscape'], function (angular, cytoscape) {
 
         nodeGraph().then(function (cy) {
 
+            function addNodes(nodes) {
+                cy.batch(function () {
+                    var toAdd = {
+                        nodes: [],
+                        edges: []
+                    };
+                    nodes.forEach(function (node) {
+                        if (cy.getElementById(node.id).length === 0) {
+                            toAdd.nodes.push({
+                                data: {id: node.id}
+                            });
+                            node.depends.forEach(function (targetId) {
+                                toAdd.edges.push({
+                                    data: {
+                                        source: node.id,
+                                        target: targetId
+                                    }
+                                });
+                            });
+                        }
+                    });
+                    cy.add(toAdd);
+                });
+                cy.layout();
+                //cy.fit();
+            }
+
             function setState(elem, stateClass) {
                 elem.removeClass('running');
                 elem.removeClass('stopped');
@@ -88,42 +115,14 @@ define(['angular', 'cytoscape'], function (angular, cytoscape) {
                 elem.addClass(stateClass);
             }
 
-            function setNodeState(nodeState) {
-                //console.info('setNodeState', nodeState);
-                //console.info('Setting node ' + nodeState.id + ' to ' + nodeState.state);
-                var node = cy.getElementById(nodeState.id);
-                var neighbourhood = node.connectedEdges().add(node);
-                setState(neighbourhood, nodeState.state.toLowerCase());
-            }
-
-            function addNodes(nodes) {
-                var toAdd = {
-                    nodes: [],
-                    edges: []
-                };
-
-                nodes.forEach(function (node) {
-                    toAdd.nodes.push({
-                        data: {id: node.id}
-                    });
-                    node.depends.forEach(function (targetId) {
-                        toAdd.edges.push({
-                            data: {
-                                source: node.id,
-                                target: targetId
-                            }
-                        });
-                    });
-                });
-                cy.add(toAdd);
-                cy.layout();
-                //cy.fit();
-            }
-
             function changeNodes(nodeStates) {
+                cy.startBatch();
                 nodeStates.forEach(function (nodeState) {
-                    setNodeState(nodeState);
+                    var node = cy.getElementById(nodeState.id);
+                    var neighbourhood = node.connectedEdges().add(node);
+                    setState(neighbourhood, nodeState.state.toLowerCase());
                 });
+                cy.endBatch();
             }
 
 

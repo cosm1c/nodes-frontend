@@ -29,11 +29,11 @@ class DigraphActor(private var digraph: Set[Node]) extends Actor with ActorLoggi
       listeners.foreach(_ ! stateChange)
       nodesStateMap ++= stateChange.nodeStates.map(nodeState => nodeState.id -> nodeState)
 
-    case addNodes@AddNodes(node: Node) =>
-      log.info(s"AddNode $node")
+    case addNodes@AddNodes(nodes: Seq[Node]) =>
+      log.info(s"AddNode $nodes")
       listeners.foreach(_ ! addNodes)
-      digraph += node
-      nodesStateMap += (node.id -> NodeState(node.id, Unknown))
+      digraph ++= nodes
+      nodesStateMap ++= nodes.map(node => node.id -> NodeState(node.id, Unknown))
   }
 }
 

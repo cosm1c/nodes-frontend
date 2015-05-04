@@ -9,6 +9,7 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.11.6"
 
 libraryDependencies ++= Seq(
+  "com.typesafe.akka" %% "akka-remote" % "2.3.4",
   // WebJars (i.e. client-side) dependencies
   "org.webjars" % "requirejs" % "2.1.17",
   "org.webjars" % "lodash" % "3.6.0",
