@@ -8,7 +8,7 @@ import domain.Node
 
 class RemoteNodeActor(node: Node) extends Actor with ActorLogging {
 
-  log.info(s"RemoteNodeActor for $node")
+  log.info(s"RemoteNodeActor for $node - ${self.path}")
 
   override def preStart(): Unit = {
     context.system.eventStream.subscribe(self, classOf[RemotingLifecycleEvent])
@@ -22,14 +22,20 @@ class RemoteNodeActor(node: Node) extends Actor with ActorLogging {
 
   override def receive = {
 
-    case DisassociatedEvent(_, _, _) =>
-      log.info("Client disconnected - DisassociatedEvent")
-      DiGraphController.digraphActor ! StateChanges(Seq(NodeState(node.id, Stopped)))
+    case evt@DisassociatedEvent(localAddress, remoteAddress, inbound) => {
+      log.info(s"Client disconnected: $evt")
 
+      // TODO: Implement cleaner means of determining if DisassociatedEvent is for this Actor
+      if (self.path.toString.contains(remoteAddress.toString.replace("://", "/"))) {
+        log.info("remoteAddress DOES MATCH")
+        DiGraphController.digraphActor ! StateChanges(Seq(NodeState(node.id, Stopped)))
+      } else {
+        log.info("remoteAddress NO MATCH")
+      }
+    }
     case msg@_ =>
-      log.info(s"msg: $msg")
+      log.info(s"Unhandled message: $msg")
   }
-
 }
 
 object RemoteNodeActor {

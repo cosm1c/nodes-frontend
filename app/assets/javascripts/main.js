@@ -28,7 +28,7 @@
             'jquery': ['../lib/jquery/jquery'],
             'angular': ['../lib/angularjs/angular'],
             'bootstrap': ['../lib/bootstrap/js/bootstrap'],
-            'cytoscape': ['../javascripts/cytoscape.min'],
+            'cytoscape': 'cytoscape.min',
             'jsRoutes': ['/jsroutes']
         }
     });
