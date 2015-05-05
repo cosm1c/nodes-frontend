@@ -22,7 +22,7 @@ class RemoteNodeActor(node: Node) extends Actor with ActorLogging {
 
   override def receive = {
 
-    case evt@DisassociatedEvent(localAddress, remoteAddress, inbound) => {
+    case evt@DisassociatedEvent(localAddress, remoteAddress, inbound) =>
       log.info(s"Client disconnected: $evt")
 
       // TODO: Implement cleaner means of determining if DisassociatedEvent is for this Actor
@@ -32,7 +32,7 @@ class RemoteNodeActor(node: Node) extends Actor with ActorLogging {
       } else {
         log.info("remoteAddress NO MATCH")
       }
-    }
+
     case msg@_ =>
       log.info(s"Unhandled message: $msg")
   }

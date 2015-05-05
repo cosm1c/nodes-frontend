@@ -145,15 +145,15 @@ define(['angular', 'cytoscape'], function (angular, cytoscape) {
             };
 
             ws.onerror = function (evt) {
-                console.error("WebSocket error: " + evt.data);
+                console.error("WebSocket error", evt);
             };
 
             ws.onopen = function (evt) {
-                console.info("Websocket connected");
+                console.info("Websocket connected", evt);
             };
 
             ws.onclose = function (evt) {
-                console.info("WebSocket disconnected");
+                console.info("WebSocket disconnected", evt);
             };
 
             $scope.ws = ws;
